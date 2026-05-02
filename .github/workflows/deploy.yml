@@ -23,6 +23,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify build artifacts
+        run: |
+          echo "=== Required file check ==="
+          test -f .nojekyll              || (echo "FAIL: .nojekyll missing — Jekyll will corrupt binary files" && exit 1)
+          test -f Build/WebGl.wasm       || (echo "FAIL: Build/WebGl.wasm missing" && exit 1)
+          test -f Build/WebGl.data       || (echo "FAIL: Build/WebGl.data missing" && exit 1)
+          test -f Build/WebGl.loader.js  || (echo "FAIL: Build/WebGl.loader.js missing" && exit 1)
+          test -f Build/WebGl.framework.js || (echo "FAIL: Build/WebGl.framework.js missing" && exit 1)
+          echo "All required files present."
+          echo ""
+          echo "=== Build asset sizes ==="
+          du -sh Build/* | sort -rh
+          echo ""
+          echo "=== Total payload ==="
+          du -sh Build/
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
