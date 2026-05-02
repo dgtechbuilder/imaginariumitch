@@ -3,45 +3,286 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | FullCompostite</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>FullComposite | ImagineAfrica</title>
+
+    <!-- Viewport — user-scalable omitted intentionally for accessibility (WCAG 1.4.4) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="FullComposite — an interactive experience by ImagineAfrica">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="FullComposite">
+    <meta property="og:description" content="An interactive experience by ImagineAfrica">
+    <meta property="og:image" content="https://imagineafrica.site/TemplateData/webmemd-icon.png">
+    <meta property="og:url" content="https://imagineafrica.site">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="FullComposite">
+    <meta name="twitter:description" content="An interactive experience by ImagineAfrica">
+    <meta name="twitter:image" content="https://imagineafrica.site/TemplateData/webmemd-icon.png">
+
+    <link rel="icon" type="image/png" href="TemplateData/webmemd-icon.png">
+
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
+            background: #231F20;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #e8e0d4;
         }
 
         #unity-canvas {
-            display: block; /* removes inline-block whitespace */
-            width: 100vw; /* full viewport width */
-            height: 100vh; /* full viewport height */
+            display: block;
+            width: 100vw;
+            height: 100vh;
             background: #231F20;
         }
+
+        /* ── Loading overlay ── */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: #231F20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.6s ease;
+        }
+        #loading-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-logo {
+            width: 72px;
+            height: 72px;
+            margin-bottom: 28px;
+            opacity: 0.85;
+        }
+        .loading-title {
+            font-size: 0.95rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            font-weight: 300;
+            margin-bottom: 28px;
+            color: #e8e0d4;
+        }
+        .progress-track {
+            width: min(300px, 75vw);
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 1px;
+            overflow: hidden;
+            margin-bottom: 14px;
+        }
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #b8925a, #e8c97a);
+            border-radius: 1px;
+            transition: width 0.25s ease;
+        }
+        #loading-status {
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.35);
+        }
+
+        /* ── Error screen ── */
+        #error-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #231F20;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 32px;
+            text-align: center;
+        }
+        #error-screen.visible { display: flex; }
+
+        .error-heading {
+            font-size: 1rem;
+            font-weight: 400;
+            margin-bottom: 12px;
+        }
+        #error-detail {
+            font-size: 0.8rem;
+            line-height: 1.7;
+            max-width: 500px;
+            color: rgba(255,255,255,0.45);
+            margin-bottom: 28px;
+            white-space: pre-wrap;
+        }
+        .btn-retry {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.22);
+            color: #e8e0d4;
+            padding: 9px 22px;
+            font-size: 0.8rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: border-color 0.2s;
+        }
+        .btn-retry:hover { border-color: rgba(255,255,255,0.55); }
+
+        /* ── Unsupported browser screen ── */
+        #unsupported-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #231F20;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 32px;
+            text-align: center;
+        }
+        #unsupported-screen.visible { display: flex; }
+
+        .unsupported-heading {
+            font-size: 1rem;
+            font-weight: 400;
+            margin-bottom: 12px;
+        }
+        .unsupported-body {
+            font-size: 0.8rem;
+            line-height: 1.7;
+            max-width: 420px;
+            color: rgba(255,255,255,0.45);
+            margin-bottom: 24px;
+        }
+        .browser-links {
+            display: flex;
+            gap: 16px;
+        }
+        .browser-links a {
+            color: #c5a05a;
+            font-size: 0.78rem;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .browser-links a:hover { border-color: #c5a05a; }
     </style>
 </head>
-<body style="text-align: center; padding: 0; border: 0; margin: 0;">
-    <canvas id="unity-canvas" tabindex="-1"></canvas>
-    <script src="Build/WebGl.loader.js"></script>
-    <script>
+<body>
 
-        createUnityInstance(document.querySelector("#unity-canvas"), {
-            arguments: [],
-            dataUrl: "Build/WebGl.data",
-            frameworkUrl: "Build/WebGl.framework.js",
-            codeUrl: "Build/WebGl.wasm",
-            streamingAssetsUrl: "StreamingAssets",
-            companyName: "DefaultCompany",
-            productName: "FullCompostite",
-            productVersion: "0.1.0",
-            // matchWebGLToCanvasSize: false, // Uncomment this to separately control WebGL canvas render size and DOM element size.
-            // devicePixelRatio: 1, // Uncomment this to override low DPI rendering on high DPI displays.
-        }).then((unityInstance) => {
-        }).catch((message) => {
-            alert(message);
-        });
+    <!-- Unsupported browser -->
+    <div id="unsupported-screen">
+        <p class="unsupported-heading">Browser not supported</p>
+        <p class="unsupported-body">
+            This experience requires WebGL2, which is not available in your current browser.
+            Please use the latest version of Chrome, Firefox, or Edge on a desktop device.
+        </p>
+        <div class="browser-links">
+            <a href="https://www.google.com/chrome/" rel="noopener noreferrer">Chrome</a>
+            <a href="https://www.mozilla.org/firefox/" rel="noopener noreferrer">Firefox</a>
+            <a href="https://www.microsoft.com/edge" rel="noopener noreferrer">Edge</a>
+        </div>
+    </div>
+
+    <!-- Runtime error -->
+    <div id="error-screen">
+        <p class="error-heading">Something went wrong</p>
+        <p id="error-detail"></p>
+        <button class="btn-retry" onclick="window.location.reload()">Try again</button>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay">
+        <img class="loading-logo" src="TemplateData/webmemd-icon.png" alt="">
+        <p class="loading-title">FullComposite</p>
+        <div class="progress-track">
+            <div id="progress-fill"></div>
+        </div>
+        <p id="loading-status">Loading&hellip;</p>
+    </div>
+
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+
+    <script>
+        // Service worker — enables cache-first repeat visits
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js').catch(function() {});
+        }
+
+        // WebGL2 guard — bail early with a friendly message before loading 87 MB
+        var webglSupported = (function() {
+            try {
+                var c = document.createElement('canvas');
+                return !!(c.getContext('webgl2'));
+            } catch (e) {
+                return false;
+            }
+        })();
+
+        if (!webglSupported) {
+            document.getElementById('unsupported-screen').classList.add('visible');
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        var progressFill  = document.getElementById('progress-fill');
+        var loadingStatus = document.getElementById('loading-status');
+        var loadingOverlay = document.getElementById('loading-overlay');
+
+        function onProgress(progress) {
+            progressFill.style.width = Math.round(progress * 100) + '%';
+            if (progress < 0.4) {
+                loadingStatus.textContent = 'Downloading assets…';
+            } else if (progress < 0.9) {
+                loadingStatus.textContent = 'Initialising…';
+            } else {
+                loadingStatus.textContent = 'Starting…';
+            }
+        }
+
+        function onReady() {
+            loadingOverlay.classList.add('fade-out');
+            setTimeout(function() { loadingOverlay.style.display = 'none'; }, 650);
+        }
+
+        function onError(message) {
+            loadingOverlay.style.display = 'none';
+            document.getElementById('error-detail').textContent = message;
+            document.getElementById('error-screen').classList.add('visible');
+        }
+
+        // Only inject the loader when WebGL2 is confirmed available
+        if (webglSupported) {
+            var loaderScript = document.createElement('script');
+            loaderScript.src = 'Build/WebGl.loader.js';
+            loaderScript.onload = function() {
+                createUnityInstance(document.getElementById('unity-canvas'), {
+                    arguments: [],
+                    dataUrl:      'Build/WebGl.data',
+                    frameworkUrl: 'Build/WebGl.framework.js',
+                    codeUrl:      'Build/WebGl.wasm',
+                    streamingAssetsUrl: 'StreamingAssets',
+                    companyName:    'ImagineAfrica',
+                    productName:    'FullComposite',
+                    productVersion: '0.1.0',
+                    devicePixelRatio: 1,
+                }, onProgress).then(onReady).catch(onError);
+            };
+            loaderScript.onerror = function() {
+                onError('Failed to load game engine. Please refresh or try a different browser.');
+            };
+            document.body.appendChild(loaderScript);
+        }
     </script>
 </body>
 </html>
