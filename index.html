@@ -24,6 +24,8 @@
 
     <link rel="icon" type="image/png" href="TemplateData/webmemd-icon.png">
 
+    <script src="https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js"></script>
+
     <style>
         *, *::before, *::after { box-sizing: border-box; }
 
@@ -215,6 +217,8 @@
     <canvas id="unity-canvas" tabindex="-1"></canvas>
 
     <script>
+        mixpanel.init('86511d35930904839c86776c70a24949');
+
         // Service worker — enables cache-first repeat visits
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/service-worker.js').catch(function() {});
@@ -233,6 +237,7 @@
         if (!webglSupported) {
             document.getElementById('unsupported-screen').classList.add('visible');
             document.getElementById('loading-overlay').style.display = 'none';
+            mixpanel.track('webgl_not_supported', { platform: 'web' });
         }
 
         var progressFill  = document.getElementById('progress-fill');
@@ -253,16 +258,24 @@
         function onReady() {
             loadingOverlay.classList.add('fade-out');
             setTimeout(function() { loadingOverlay.style.display = 'none'; }, 650);
+            mixpanel.track('game_load_completed', {
+                load_duration_ms: Date.now() - loadStartTime,
+                platform: 'web'
+            });
         }
 
         function onError(message) {
             loadingOverlay.style.display = 'none';
             document.getElementById('error-detail').textContent = message;
             document.getElementById('error-screen').classList.add('visible');
+            mixpanel.track('game_load_failed', { error: message, platform: 'web' });
         }
 
         // Only inject the loader when WebGL2 is confirmed available
         if (webglSupported) {
+            var loadStartTime = Date.now();
+            mixpanel.track('game_load_started', { platform: 'web' });
+
             var loaderScript = document.createElement('script');
             loaderScript.src = 'Build/WebGl.loader.js';
             loaderScript.onload = function() {
