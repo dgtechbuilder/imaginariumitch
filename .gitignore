@@ -33,3 +33,7 @@ sysinfo.txt
 # Node (if tooling is ever added)
 node_modules/
 npm-debug.log*
+
+# Claude Code / MCP
+.claude/auth.json
+.claude/*.key
