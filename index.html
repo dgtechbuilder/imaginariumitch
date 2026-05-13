@@ -24,20 +24,24 @@
 
     <link rel="icon" type="image/png" href="TemplateData/webmemd-icon.png">
 
-    <!-- Sentry error monitoring — loads before Unity bootstrap -->
+    <!-- Sentry error monitoring — async so it doesn't block initial parse/render -->
+    <script>
+      function _sentryInit() {
+        Sentry.init({
+          dsn: '%%SENTRY_DSN%%',
+          release: '%%SENTRY_RELEASE%%',
+          environment: 'production',
+          integrations: [Sentry.browserTracingIntegration()],
+          tracesSampleRate: 0.1,
+        });
+      }
+    </script>
     <script
       src="https://browser.sentry-cdn.com/8.55.0/bundle.tracing.min.js"
+      async
       crossorigin="anonymous"
+      onload="_sentryInit()"
     ></script>
-    <script>
-      Sentry.init({
-        dsn: '%%SENTRY_DSN%%',
-        release: '%%SENTRY_RELEASE%%',
-        environment: 'production',
-        integrations: [Sentry.browserTracingIntegration()],
-        tracesSampleRate: 0.1,
-      });
-    </script>
 
     <style>
         *, *::before, *::after { box-sizing: border-box; }
@@ -136,7 +140,7 @@
             font-size: 0.8rem;
             line-height: 1.7;
             max-width: 500px;
-            color: rgba(255,255,255,0.45);
+            color: rgba(255,255,255,0.75);
             margin-bottom: 28px;
             white-space: pre-wrap;
         }
