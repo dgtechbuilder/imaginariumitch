@@ -1,3 +1,5 @@
+import './instrument.js'
+import * as Sentry from '@sentry/node'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import pingRoute from './routes/ping.js'
@@ -17,9 +19,15 @@ await fastify.register(cors, {
   allowedHeaders: ['Content-Type'],
 })
 
+Sentry.setupFastifyErrorHandler(fastify)
+
 fastify.register(pingRoute)
 fastify.register(leaderboardRoute)
 fastify.register(scoreRoute)
+
+fastify.get('/debug-sentry', function() {
+  throw new Error('Sentry test error from Imaginarium backend')
+})
 
 const port = Number(process.env.PORT) || 3000
 try {
