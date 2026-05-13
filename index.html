@@ -26,6 +26,25 @@
 
     <script src="https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js"></script>
 
+    <!-- Sentry error monitoring — async so it doesn't block initial parse/render -->
+    <script>
+      function _sentryInit() {
+        Sentry.init({
+          dsn: '%%SENTRY_DSN%%',
+          release: '%%SENTRY_RELEASE%%',
+          environment: 'production',
+          integrations: [Sentry.browserTracingIntegration()],
+          tracesSampleRate: 0.1,
+        });
+      }
+    </script>
+    <script
+      src="https://browser.sentry-cdn.com/8.55.0/bundle.tracing.min.js"
+      async
+      crossorigin="anonymous"
+      onload="_sentryInit()"
+    ></script>
+
     <style>
         *, *::before, *::after { box-sizing: border-box; }
 
@@ -123,7 +142,7 @@
             font-size: 0.8rem;
             line-height: 1.7;
             max-width: 500px;
-            color: rgba(255,255,255,0.45);
+            color: rgba(255,255,255,0.75);
             margin-bottom: 28px;
             white-space: pre-wrap;
         }
@@ -269,7 +288,22 @@
             document.getElementById('error-detail').textContent = message;
             document.getElementById('error-screen').classList.add('visible');
             mixpanel.track('game_load_failed', { error: message, platform: 'web' });
+            if (typeof Sentry !== 'undefined') {
+                Sentry.captureMessage(String(message), { level: 'error', tags: { game: 'imaginarium-africa' } });
+            }
         }
+
+        // Route unhandled JS errors and promise rejections to Sentry
+        window.addEventListener('error', function(e) {
+            if (typeof Sentry !== 'undefined') {
+                Sentry.captureException(e.error || new Error(e.message), { tags: { game: 'imaginarium-africa' } });
+            }
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            if (typeof Sentry !== 'undefined') {
+                Sentry.captureException(e.reason, { tags: { game: 'imaginarium-africa' } });
+            }
+        });
 
         // Only inject the loader when WebGL2 is confirmed available
         if (webglSupported) {
@@ -289,7 +323,12 @@
                     productName:    'FullComposite',
                     productVersion: '0.1.0',
                     devicePixelRatio: 1,
-                }, onProgress).then(onReady).catch(onError);
+                }, onProgress).then(function() {
+                    if (typeof Sentry !== 'undefined') {
+                        Sentry.setTag('game', 'imaginarium-africa');
+                    }
+                    onReady();
+                }).catch(onError);
             };
             loaderScript.onerror = function() {
                 onError('Failed to load game engine. Please refresh or try a different browser.');
