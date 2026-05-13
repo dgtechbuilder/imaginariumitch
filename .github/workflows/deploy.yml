@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Verify build artifacts
         run: |
@@ -38,6 +40,36 @@ jobs:
           echo ""
           echo "=== Total payload ==="
           du -sh Build/
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Upload source maps to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: kunta-content
+          SENTRY_PROJECT: node
+        run: |
+          npx --yes @sentry/cli@latest releases new ${{ github.sha }}
+          npx @sentry/cli@latest releases files ${{ github.sha }} \
+            upload-sourcemaps . \
+            --url-prefix '/' \
+            --ext js \
+            --ext html \
+            --ignore Build/ \
+            --ignore node_modules/ \
+            --include-sources
+          npx @sentry/cli@latest releases set-commits ${{ github.sha }} --auto
+          npx @sentry/cli@latest releases finalize ${{ github.sha }}
+
+      - name: Inject Sentry DSN and release into index.html
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          sed -i "s|%%SENTRY_DSN%%|${SENTRY_DSN}|g" index.html
+          sed -i "s|%%SENTRY_RELEASE%%|${{ github.sha }}|g" index.html
 
       - uses: actions/configure-pages@v5
 
