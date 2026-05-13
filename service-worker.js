@@ -1,7 +1,12 @@
 // Cache version — increment this string when deploying a new build to bust old caches
 var CACHE_NAME = 'fullcomposite-v1';
 
-// On activate: delete any caches from previous versions
+// Skip waiting so a newly installed SW takes over immediately on next navigation
+self.addEventListener('install', function(event) {
+    event.waitUntil(self.skipWaiting());
+});
+
+// On activate: delete caches from previous versions and claim all open clients
 self.addEventListener('activate', function(event) {
     event.waitUntil(
         caches.keys().then(function(keys) {
@@ -18,17 +23,25 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('fetch', function(event) {
     var url = new URL(event.request.url);
 
-    // Cache-first for large, stable build assets — saves the full 87 MB re-download on repeat visits
+    // Cache-first for large, stable build assets — saves the full 87 MB re-download on repeat visits.
+    // Top-level .catch() ensures any Cache API failure (e.g. storage quota exceeded on first load)
+    // falls back to a direct network fetch rather than propagating as net::ERR_FAILED.
     if (url.pathname.startsWith('/Build/')) {
         event.respondWith(
             caches.open(CACHE_NAME).then(function(cache) {
                 return cache.match(event.request).then(function(cached) {
                     if (cached) return cached;
                     return fetch(event.request).then(function(response) {
-                        if (response.ok) cache.put(event.request, response.clone());
+                        if (response.ok) {
+                            // Fire-and-forget cache write; quota errors must not affect the response stream
+                            cache.put(event.request, response.clone()).catch(function() {});
+                        }
                         return response;
                     });
                 });
+            }).catch(function() {
+                // Cache API unavailable or threw — bypass it entirely for this request
+                return fetch(event.request);
             })
         );
         return;
