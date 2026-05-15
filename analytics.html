@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traction Analytics — ImagineAfrica</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --gold: #b8925a;
+      --dark: #1a1714;
+      --surface: #231f1c;
+      --surface2: #2e2a26;
+      --text: #e8e0d4;
+      --muted: #9b8f82;
+      --positive: #4ade80;
+      --negative: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--dark); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; }
+    .card { background: var(--surface); border: 1px solid #3a342e; border-radius: 12px; }
+    .card2 { background: var(--surface2); border: 1px solid #3a342e; border-radius: 8px; }
+    .gold { color: var(--gold); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-gold { background: var(--gold); color: #1a1714; }
+    .btn-outline { background: transparent; border: 1px solid #4a3f35; color: var(--text); }
+    .tab { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; color: var(--muted); transition: all .15s; }
+    .tab.active { background: var(--gold); color: #1a1714; font-weight: 600; }
+    .tab:not(.active):hover { color: var(--text); background: #3a342e; }
+    select {
+      background: var(--surface2); border: 1px solid #4a3f35; color: var(--text);
+      padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer;
+    }
+    .delta-pos { color: var(--positive); font-size: 11px; font-weight: 700; }
+    .delta-neg { color: var(--negative); font-size: 11px; font-weight: 700; }
+    .delta-neu { color: var(--muted); font-size: 11px; }
+    canvas { max-height: 300px; }
+    #insights-output {
+      white-space: pre-wrap; font-size: 13px; line-height: 1.7;
+      color: var(--text); min-height: 60px;
+    }
+    .priority-high { color: var(--negative); }
+    .priority-medium { color: var(--gold); }
+    .priority-low { color: var(--positive); }
+    .skeleton {
+      background: linear-gradient(90deg, #2e2a26 25%, #3a342e 50%, #2e2a26 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+      height: 1.2em;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header style="background:var(--surface);border-bottom:1px solid #3a342e;position:sticky;top:0;z-index:50;">
+  <div style="max-width:1440px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:200px;">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="#b8925a" stroke-width="2"/>
+        <path d="M7 18 L14 9 L21 18" stroke="#b8925a" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="14" cy="9" r="2" fill="#b8925a"/>
+      </svg>
+      <div>
+        <div style="font-size:15px;font-weight:700;letter-spacing:.3px;">Traction Analytics</div>
+        <div style="font-size:11px;color:var(--muted);">ImagineAfrica · In-Game Advertising</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <label style="font-size:12px;color:var(--muted);">Campaign</label>
+      <select id="campaign-select" onchange="onCampaignChange()">
+        <option value="">All Campaigns</option>
+      </select>
+      <div style="font-size:11px;color:var(--muted);padding:4px 10px;background:var(--surface2);border-radius:20px;" id="last-updated">Loading…</div>
+    </div>
+  </div>
+</header>
+
+<main style="max-width:1440px;margin:0 auto;padding:24px;">
+
+  <!-- KPI Cards -->
+  <section style="margin-bottom:24px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;" id="kpi-grid">
+      <div class="skeleton" style="height:96px;border-radius:12px;"></div>
+      <div class="skeleton" style="height:96px;border-radius:12px;"></div>
+      <div class="skeleton" style="height:96px;border-radius:12px;"></div>
+      <div class="skeleton" style="height:96px;border-radius:12px;"></div>
+      <div class="skeleton" style="height:96px;border-radius:12px;"></div>
+      <div class="skeleton" style="height:96px;border-radius:12px;"></div>
+    </div>
+  </section>
+
+  <!-- Performance Over Time -->
+  <section class="card" style="padding:20px;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:15px;font-weight:700;">Performance Over Time</div>
+        <div style="font-size:12px;color:var(--muted);">Daily metric trend</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="metric-select" onchange="onMetricChange()" style="font-size:12px;padding:6px 10px;">
+          <option value="impressions">Impressions</option>
+          <option value="engagements">Engagements</option>
+          <option value="viewabilityRate">Viewability Rate</option>
+          <option value="costPerEngagement">Cost Per Engagement</option>
+        </select>
+        <div style="display:flex;gap:4px;">
+          <button class="tab active" id="range-7" onclick="setRange(7)">7d</button>
+          <button class="tab" id="range-30" onclick="setRange(30)">30d</button>
+          <button class="tab" id="range-90" onclick="setRange(90)">90d</button>
+        </div>
+        <button class="btn btn-outline" onclick="exportPNG('timeseries-chart')" style="font-size:12px;padding:6px 12px;">
+          ↓ PNG
+        </button>
+      </div>
+    </div>
+    <canvas id="timeseries-chart"></canvas>
+  </section>
+
+  <!-- Placement + Segments row -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:24px;margin-bottom:24px;">
+
+    <!-- Placement Breakdown -->
+    <section class="card" style="padding:20px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Placement Breakdown</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Impression share &amp; CPE</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><canvas id="placement-donut" style="max-height:200px;"></canvas></div>
+        <div><canvas id="placement-bar" style="max-height:200px;"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Segmentation -->
+    <section class="card" style="padding:20px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:12px;">Segmentation</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;" id="seg-tabs">
+        <button class="tab active" onclick="setSegment('placement')">Placement</button>
+        <button class="tab" onclick="setSegment('region')">Region</button>
+        <button class="tab" onclick="setSegment('cohort')">Cohort</button>
+        <button class="tab" onclick="setSegment('game')">Game</button>
+      </div>
+      <canvas id="segment-chart" style="max-height:200px;"></canvas>
+    </section>
+  </div>
+
+  <!-- AI Insights + Weekly Report row -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:24px;margin-bottom:24px;">
+
+    <!-- AI Insights -->
+    <section class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;">AI Insights</div>
+          <div style="font-size:12px;color:var(--muted);">Powered by Claude</div>
+        </div>
+        <button class="btn btn-gold" id="insights-btn" onclick="streamInsights()">Generate Insights</button>
+      </div>
+      <div class="card2" style="padding:14px;min-height:120px;">
+        <div id="insights-output" style="color:var(--muted);">Click "Generate Insights" to surface what's driving traction.</div>
+      </div>
+      <div id="insights-ts" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:right;"></div>
+    </section>
+
+    <!-- Weekly Report -->
+    <section class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;">Weekly Report</div>
+          <div style="font-size:12px;color:var(--muted);" id="report-range">Loading…</div>
+        </div>
+        <button class="btn btn-outline" onclick="exportCSV()">↓ Export CSV</button>
+      </div>
+      <div id="report-highlights" style="margin-bottom:16px;">
+        <div class="skeleton" style="margin-bottom:6px;"></div>
+        <div class="skeleton" style="margin-bottom:6px;width:85%;"></div>
+        <div class="skeleton" style="width:70%;"></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Recommendations</div>
+      <div id="report-recs">
+        <div class="skeleton" style="margin-bottom:6px;"></div>
+        <div class="skeleton" style="width:80%;"></div>
+      </div>
+    </section>
+  </div>
+
+</main>
+
+<script>
+  const API_BASE = 'http://localhost:3000'
+
+  let charts = {}
+  let state = {
+    campaignId: '',
+    metric: 'impressions',
+    days: 7,
+    segment: 'placement',
+    kpiData: null,
+    reportData: null,
+  }
+
+  // ── Utilities ────────────────────────────────────────────────────────────
+  const fmt = (n, dec = 0) => n == null ? '—' : Number(n).toLocaleString('en', { maximumFractionDigits: dec, minimumFractionDigits: dec })
+  const pct = (n) => n == null ? '—' : `${(n * 100).toFixed(1)}%`
+  const usd = (n) => n == null ? '—' : `$${Number(n).toFixed(2)}`
+
+  function deltaTag(v, invert = false) {
+    if (v == null || v === 0) return '<span class="delta-neu">→ 0%</span>'
+    const pos = invert ? v < 0 : v > 0
+    const cls = pos ? 'delta-pos' : 'delta-neg'
+    const arrow = pos ? '▲' : '▼'
+    return `<span class="${cls}">${arrow} ${Math.abs((v * 100).toFixed(1))}%</span>`
+  }
+
+  function chartDefaults() {
+    return {
+      color: '#b8925a',
+      borderColor: '#b8925a',
+      plugins: { legend: { labels: { color: '#9b8f82', font: { size: 11 } } } },
+    }
+  }
+
+  const PALETTE = ['#b8925a', '#d4aa70', '#8b6b3d', '#5c4520', '#e8d5b0', '#c4a06a']
+  const PLACEMENT_COLORS = { banner: '#b8925a', cutscene: '#4ade80', cosmetic: '#60a5fa', environmental: '#f472b6' }
+
+  // ── Boot ─────────────────────────────────────────────────────────────────
+  async function initDashboard() {
+    await Promise.all([loadCampaigns(), loadKPIs(), loadTimeseries(), loadSegments(), loadReport()])
+    document.getElementById('last-updated').textContent = 'Updated just now'
+  }
+
+  // ── Campaign selector ────────────────────────────────────────────────────
+  async function loadCampaigns() {
+    try {
+      const res = await fetch(`${API_BASE}/analytics/campaigns`)
+      const { campaigns } = await res.json()
+      const sel = document.getElementById('campaign-select')
+      campaigns.forEach((c) => {
+        const opt = document.createElement('option')
+        opt.value = c.id
+        opt.textContent = `${c.name} (${c.status})`
+        sel.appendChild(opt)
+      })
+    } catch (_) {}
+  }
+
+  function onCampaignChange() {
+    state.campaignId = document.getElementById('campaign-select').value
+    loadKPIs()
+    loadTimeseries()
+    loadSegments()
+    loadReport()
+  }
+
+  // ── KPI Cards ────────────────────────────────────────────────────────────
+  async function loadKPIs() {
+    const qs = state.campaignId ? `?campaignId=${state.campaignId}` : ''
+    try {
+      const res = await fetch(`${API_BASE}/analytics/kpis${qs}`)
+      const data = await res.json()
+      state.kpiData = data
+      renderKPICards(data.summary)
+    } catch (_) {}
+  }
+
+  function renderKPICards(s) {
+    const kpis = [
+      { label: 'Total Impressions', value: fmt(s.impressions), delta: deltaTag(0), icon: '👁' },
+      { label: 'Total Engagements', value: fmt(s.engagements), delta: deltaTag(0), icon: '⚡' },
+      { label: 'Viewability Rate', value: pct(s.viewabilityRate), delta: deltaTag(0), icon: '📺' },
+      { label: 'Engagement Lift', value: pct(s.engagementLift), delta: deltaTag(0), icon: '📈' },
+      { label: 'Cost Per Engagement', value: usd(s.costPerEngagement), delta: deltaTag(0, true), icon: '💰' },
+      { label: 'Brand Recall Score', value: `${s.brandRecallScore}/100`, delta: deltaTag(0), icon: '🎯' },
+    ]
+
+    document.getElementById('kpi-grid').innerHTML = kpis.map((k) => `
+      <div class="card" style="padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">${k.label}</div>
+          <span style="font-size:18px;">${k.icon}</span>
+        </div>
+        <div style="font-size:24px;font-weight:800;color:var(--gold);line-height:1.1;margin-bottom:4px;">${k.value}</div>
+        <div>${k.delta} <span style="font-size:10px;color:var(--muted);">vs prior week</span></div>
+      </div>
+    `).join('')
+  }
+
+  // ── Timeseries ───────────────────────────────────────────────────────────
+  function setRange(d) {
+    state.days = d
+    document.querySelectorAll('[id^="range-"]').forEach((el) => el.classList.remove('active'))
+    document.getElementById(`range-${d}`).classList.add('active')
+    loadTimeseries()
+  }
+
+  function onMetricChange() {
+    state.metric = document.getElementById('metric-select').value
+    loadTimeseries()
+  }
+
+  async function loadTimeseries() {
+    const qs = new URLSearchParams({ metric: state.metric, days: state.days })
+    if (state.campaignId) qs.set('campaignId', state.campaignId)
+    try {
+      const res = await fetch(`${API_BASE}/analytics/kpis/timeseries?${qs}`)
+      const { labels, values } = await res.json()
+      renderTimeseries(labels, values)
+    } catch (_) {}
+  }
+
+  function renderTimeseries(labels, values) {
+    const ctx = document.getElementById('timeseries-chart').getContext('2d')
+    if (charts.timeseries) charts.timeseries.destroy()
+    charts.timeseries = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels.map((l) => l.slice(5)),
+        datasets: [{
+          label: state.metric,
+          data: values,
+          borderColor: '#b8925a',
+          backgroundColor: 'rgba(184,146,90,0.12)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: labels.length > 30 ? 0 : 3,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#2e2a26', titleColor: '#b8925a', bodyColor: '#e8e0d4' } },
+        scales: {
+          x: { grid: { color: '#2e2a26' }, ticks: { color: '#9b8f82', maxTicksLimit: 10 } },
+          y: { grid: { color: '#2e2a26' }, ticks: { color: '#9b8f82' }, beginAtZero: true },
+        },
+      },
+    })
+  }
+
+  // ── Placement Charts ─────────────────────────────────────────────────────
+  async function loadPlacementCharts(byPlacement) {
+    if (!byPlacement) return
+    const labels = byPlacement.map((p) => p.type)
+    const colors = labels.map((l) => PLACEMENT_COLORS[l] || '#b8925a')
+
+    if (charts.donut) charts.donut.destroy()
+    charts.donut = new Chart(document.getElementById('placement-donut').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: byPlacement.map((p) => p.impressions), backgroundColor: colors, borderWidth: 0 }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { color: '#9b8f82', font: { size: 10 }, padding: 8 } }, tooltip: { backgroundColor: '#2e2a26', titleColor: '#b8925a', bodyColor: '#e8e0d4' } },
+        cutout: '65%',
+      },
+    })
+
+    if (charts.placementBar) charts.placementBar.destroy()
+    charts.placementBar = new Chart(document.getElementById('placement-bar').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ label: 'CPE ($)', data: byPlacement.map((p) => p.cpe), backgroundColor: colors, borderRadius: 4 }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#2e2a26', titleColor: '#b8925a', bodyColor: '#e8e0d4', callbacks: { label: (c) => ` $${c.raw.toFixed(2)}` } } },
+        scales: {
+          x: { grid: { color: '#2e2a26' }, ticks: { color: '#9b8f82', callback: (v) => `$${v.toFixed(2)}` } },
+          y: { grid: { display: false }, ticks: { color: '#9b8f82' } },
+        },
+      },
+    })
+  }
+
+  // ── Segments ─────────────────────────────────────────────────────────────
+  function setSegment(dim) {
+    state.segment = dim
+    document.querySelectorAll('#seg-tabs .tab').forEach((el) => {
+      el.classList.toggle('active', el.textContent.toLowerCase() === dim || el.textContent.toLowerCase().startsWith(dim.slice(0, 4)))
+    })
+    loadSegments()
+  }
+
+  async function loadSegments() {
+    const qs = new URLSearchParams({ by: state.segment })
+    if (state.campaignId) qs.set('campaignId', state.campaignId)
+    try {
+      const res = await fetch(`${API_BASE}/analytics/segments?${qs}`)
+      const { segments } = await res.json()
+      renderSegments(segments)
+    } catch (_) {}
+  }
+
+  function renderSegments(segments) {
+    const ctx = document.getElementById('segment-chart').getContext('2d')
+    if (charts.segment) charts.segment.destroy()
+    const labels = segments.map((s) => s.label)
+    charts.segment = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Impressions', data: segments.map((s) => s.impressions), backgroundColor: 'rgba(184,146,90,0.6)', borderRadius: 4 },
+          { label: 'Engagements', data: segments.map((s) => s.engagements), backgroundColor: 'rgba(74,222,128,0.6)', borderRadius: 4 },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#9b8f82', font: { size: 10 } } }, tooltip: { backgroundColor: '#2e2a26', titleColor: '#b8925a', bodyColor: '#e8e0d4' } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#9b8f82', font: { size: 10 } } },
+          y: { grid: { color: '#2e2a26' }, ticks: { color: '#9b8f82' }, beginAtZero: true },
+        },
+      },
+    })
+  }
+
+  // ── Weekly Report ────────────────────────────────────────────────────────
+  async function loadReport() {
+    try {
+      const res = await fetch(`${API_BASE}/analytics/report`)
+      const { report } = await res.json()
+      state.reportData = report
+      renderReport(report)
+    } catch (_) {}
+  }
+
+  function renderReport(report) {
+    document.getElementById('report-range').textContent = `${report.weekRange.from} → ${report.weekRange.to}`
+
+    document.getElementById('report-highlights').innerHTML = report.highlights.map((h) => `
+      <div style="display:flex;gap:8px;margin-bottom:8px;font-size:13px;line-height:1.5;">
+        <span style="color:var(--gold);flex-shrink:0;margin-top:1px;">›</span>
+        <span>${h}</span>
+      </div>
+    `).join('')
+
+    document.getElementById('report-recs').innerHTML = report.recommendations.map((r) => `
+      <div class="card2" style="padding:10px 12px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span class="priority-${r.priority}" style="font-size:10px;font-weight:700;text-transform:uppercase;">${r.priority}</span>
+          <span style="font-size:13px;font-weight:600;">${r.action}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">${r.rationale}</div>
+      </div>
+    `).join('')
+  }
+
+  // ── AI Insights (SSE) ────────────────────────────────────────────────────
+  function streamInsights() {
+    const btn = document.getElementById('insights-btn')
+    const output = document.getElementById('insights-output')
+    btn.disabled = true
+    btn.textContent = 'Generating…'
+    output.textContent = ''
+    output.style.color = 'var(--text)'
+
+    const qs = state.campaignId ? `?campaignId=${state.campaignId}` : ''
+    const es = new EventSource(`${API_BASE}/analytics/insights${qs}`)
+
+    es.onmessage = (e) => {
+      const msg = JSON.parse(e.data)
+      if (msg.type === 'delta') {
+        output.textContent += msg.text
+      } else if (msg.type === 'done') {
+        es.close()
+        btn.disabled = false
+        btn.textContent = 'Regenerate'
+        document.getElementById('insights-ts').textContent = `Generated ${new Date().toLocaleTimeString()}`
+      } else if (msg.type === 'error') {
+        es.close()
+        output.style.color = 'var(--negative)'
+        output.textContent = `Error: ${msg.message}`
+        btn.disabled = false
+        btn.textContent = 'Retry'
+      }
+    }
+
+    es.onerror = () => {
+      es.close()
+      if (!output.textContent) {
+        output.style.color = 'var(--muted)'
+        output.textContent = 'Could not connect to insights service. Ensure ANTHROPIC_API_KEY is set.'
+      }
+      btn.disabled = false
+      btn.textContent = 'Retry'
+    }
+  }
+
+  // ── Exports ──────────────────────────────────────────────────────────────
+  function exportPNG(chartId) {
+    const chart = charts.timeseries
+    if (!chart) return
+    const link = document.createElement('a')
+    link.download = `traction-analytics-${state.metric}-${new Date().toISOString().slice(0,10)}.png`
+    link.href = chart.toBase64Image()
+    link.click()
+  }
+
+  function exportCSV() {
+    if (!state.kpiData) return
+    const { summary, byPlacement, byRegion } = state.kpiData
+    const rows = [
+      ['Metric', 'Value'],
+      ['Impressions', summary.impressions],
+      ['Engagements', summary.engagements],
+      ['Viewability Rate', summary.viewabilityRate],
+      ['Engagement Rate', summary.engagementRate],
+      ['Engagement Lift', summary.engagementLift],
+      ['Cost Per Engagement', summary.costPerEngagement],
+      ['Brand Recall Score', summary.brandRecallScore],
+      [],
+      ['Placement', 'Impressions', 'Engagements', 'CPE', 'Viewability Rate'],
+      ...byPlacement.map((p) => [p.type, p.impressions, p.engagements, p.cpe, p.viewabilityRate]),
+      [],
+      ['Region', 'Impressions', 'Engagements', 'Engagement Rate'],
+      ...byRegion.map((r) => [r.region, r.impressions, r.engagements, r.engagementRate]),
+    ]
+
+    if (state.reportData) {
+      rows.push([], ['Weekly Highlights'])
+      state.reportData.highlights.forEach((h) => rows.push([h]))
+      rows.push([], ['Recommendations', 'Priority', 'Rationale'])
+      state.reportData.recommendations.forEach((r) => rows.push([r.action, r.priority, r.rationale]))
+    }
+
+    const csv = rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const link = document.createElement('a')
+    link.download = `traction-analytics-${new Date().toISOString().slice(0,10)}.csv`
+    link.href = URL.createObjectURL(blob)
+    link.click()
+  }
+
+  // ── Wire up KPI data → placement charts ──────────────────────────────────
+  const origLoadKPIs = loadKPIs
+  async function loadKPIsAndPlacement() {
+    const qs = state.campaignId ? `?campaignId=${state.campaignId}` : ''
+    try {
+      const res = await fetch(`${API_BASE}/analytics/kpis${qs}`)
+      const data = await res.json()
+      state.kpiData = data
+      renderKPICards(data.summary)
+      loadPlacementCharts(data.byPlacement)
+    } catch (_) {}
+  }
+
+  // Override loadKPIs to also load placement charts
+  window.loadKPIs = loadKPIsAndPlacement
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    Promise.all([
+      loadCampaigns(),
+      loadKPIsAndPlacement(),
+      loadTimeseries(),
+      loadSegments(),
+      loadReport(),
+    ]).then(() => {
+      document.getElementById('last-updated').textContent = `Updated ${new Date().toLocaleTimeString()}`
+    })
+  })
+</script>
+</body>
+</html>

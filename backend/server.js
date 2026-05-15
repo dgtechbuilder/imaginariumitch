@@ -5,6 +5,12 @@ import cors from '@fastify/cors'
 import pingRoute from './routes/ping.js'
 import leaderboardRoute from './routes/leaderboard.js'
 import scoreRoute from './routes/score.js'
+import campaignsRoute from './routes/analytics/campaigns.js'
+import eventsRoute from './routes/analytics/events.js'
+import kpisRoute from './routes/analytics/kpis.js'
+import segmentsRoute from './routes/analytics/segments.js'
+import reportRoute from './routes/analytics/report.js'
+import insightsRoute from './routes/analytics/insights.js'
 
 const fastify = Fastify({ logger: true })
 
@@ -24,6 +30,12 @@ Sentry.setupFastifyErrorHandler(fastify)
 fastify.register(pingRoute)
 fastify.register(leaderboardRoute)
 fastify.register(scoreRoute)
+fastify.register(campaignsRoute)
+fastify.register(eventsRoute)
+fastify.register(kpisRoute)
+fastify.register(segmentsRoute)
+fastify.register(reportRoute)
+fastify.register(insightsRoute)
 
 fastify.get('/debug-sentry', function() {
   throw new Error('Sentry test error from Imaginarium backend')

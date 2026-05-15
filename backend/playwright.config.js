@@ -10,7 +10,7 @@ export default defineConfig({
   projects: [
     {
       name: 'api',
-      testMatch: 'api.spec.js',
+      testMatch: /api\.spec\.js|analytics\.spec\.js/,
     },
     {
       name: 'sentry',
